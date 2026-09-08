@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "file:/app/data/dev.db"
+      NEXT_PUBLIC_BASE_URL: "http://localhost:3000"
+    volumes:
+      - mediticket_data:/app/data
+
+volumes:
+  mediticket_data:

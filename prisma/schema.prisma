@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  serviceId       String
+  serviceName     String
+  priceCents      Int
+  durationMinutes Int
+  patientName     String
+  patientEmail    String
+  date            String
+  time            String
+  status          String   @default("pending")
+  stripeSessionId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([serviceId, date, time])
+}

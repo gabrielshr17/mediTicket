@@ -1,0 +1,37 @@
+[
+  {
+    "id": "general-checkup",
+    "name": "General Checkup",
+    "description": "Routine consultation with a general practitioner.",
+    "priceCents": 5000,
+    "durationMinutes": 20
+  },
+  {
+    "id": "dental-cleaning",
+    "name": "Dental Cleaning",
+    "description": "Professional teeth cleaning and oral exam.",
+    "priceCents": 7500,
+    "durationMinutes": 30
+  },
+  {
+    "id": "blood-test",
+    "name": "Blood Test Panel",
+    "description": "Standard blood panel with lab analysis.",
+    "priceCents": 4000,
+    "durationMinutes": 15
+  },
+  {
+    "id": "cardiology-consult",
+    "name": "Cardiology Consultation",
+    "description": "Specialist heart health consultation.",
+    "priceCents": 12000,
+    "durationMinutes": 45
+  },
+  {
+    "id": "physical-therapy",
+    "name": "Physical Therapy Session",
+    "description": "One-on-one rehabilitation session.",
+    "priceCents": 6500,
+    "durationMinutes": 40
+  }
+]
