@@ -1,4 +1,5 @@
 import type { Service } from "@/lib/services";
+import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 
 export interface Appointment {
   id: string;
@@ -47,4 +48,44 @@ export const ApiClient = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  streamChat: (messages: ChatMessage[], signal?: AbortSignal) => streamChat(messages, signal),
+
+  getChatStatus: () => request<{ available: boolean }>("/api/chat"),
 };
+
+async function* streamChat(
+  messages: ChatMessage[],
+  signal?: AbortSignal
+): AsyncGenerator<ChatStreamEvent> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Chat request failed");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const chunk of events) {
+      const line = chunk.split("\n").find((l) => l.startsWith("data: "));
+      if (!line) continue;
+      yield JSON.parse(line.slice("data: ".length)) as ChatStreamEvent;
+    }
+  }
+}
