@@ -35,6 +35,28 @@ Written after the fact to document the design system already in use, since this 
 4. **Reserve & Pay** — full-width submit, disabled while redirecting, shows the live total from the selected service.
 5. Redirect to Stripe Checkout (hosted) → `/success` or `/cancel`.
 
+## Chat widget
+
+A floating assistant, backed by an LLM calling the MCP tools (`buscar_horarios`, `listar_informacion`, `agendar_cita`, `link_pago`). It extends the existing tokens rather than introducing a new "third-party widget" look — no new brand color, no drop-in chat-plugin styling.
+
+**Bubble (closed state).** Fixed `bottom-4 right-4` (`sm:bottom-6 sm:right-6`), a 56px circle, `bg-brand` with a white chat-line SVG icon (no emoji, per §6) and `shadow-lg` for elevation above page content — the rest of the app uses `shadow-sm` on inline cards, but a floating control needs to read as detached from the page, not just embossed on it. Becomes an "×" close icon while the panel is open.
+
+**Panel.**
+- Base (< 640px): near-full-screen sheet — `fixed inset-x-0 bottom-0 top-14`, so the page peeks above it like a native bottom sheet. `rounded-t-2xl`.
+- `sm:` (≥ 640px): fixed floating panel, `w-96 h-[32rem]`, anchored `bottom-20 right-6`, `rounded-2xl shadow-lg`, `border border-gray-200` (matches the card border weight used elsewhere).
+- Structure: header (`bg-brand text-white`, title "Asistente mediTicket" + close button) — message list (`flex-1 overflow-y-auto`) — input row pinned to the bottom.
+
+**Messages.**
+- User: right-aligned, `bg-brand text-white`, `rounded-lg`, max-width ~80%.
+- Assistant: left-aligned, `bg-teal-50 text-gray-900`, `rounded-lg` — a light tint pulled from the same hue as `brand` (Tailwind's `teal-700`), not a new color.
+- Tool-driven content gets its own treatment so it reads as *data*, not prose:
+  - Available slots (`buscar_horarios`): a wrapped row of pill buttons — `rounded-lg border border-brand text-brand text-sm px-3 py-1.5`, hover fills `bg-brand/5`. Tapping one fills the input with a booking request for that slot rather than making the user retype it.
+  - Payment link (`link_pago`): rendered as a full-width button styled exactly like the booking form's submit button (`rounded-lg bg-brand py-3 font-semibold text-white hover:bg-brand-dark`) with label "Pagar ahora" — the same visual verb as "Reserve & Pay", so it reads as the same kind of action.
+
+**Input row.** Text input (`rounded-lg border border-gray-300 px-3 py-2`, matching the booking form's fields exactly) + a circular `bg-brand` send button, disabled with `opacity-50` while a response is streaming.
+
+**Unavailable state.** When the chat backend has no `ANTHROPIC_API_KEY` configured, the bubble still opens (hiding it would look like a bug), but the panel shows the header plus a centered notice — no input row — stating plainly: "El asistente no está disponible en este momento." No apology, no vague wording, matching the interface's existing error voice (`text-gray-500`, `text-sm`).
+
 ## Known gaps
 
 - No dark-mode tokens defined — the app currently assumes light mode only (`color-scheme: light` is hardcoded in `globals.css`).
