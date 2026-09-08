@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getAppointmentById } from "@/lib/appointments";
 
 export async function GET(
   _req: NextRequest,
@@ -7,9 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const appointment = await prisma.appointment.findUnique({
-      where: { id },
-    });
+    const appointment = await getAppointmentById(id);
 
     if (!appointment) {
       return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
