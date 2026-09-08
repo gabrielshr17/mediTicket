@@ -1,0 +1,9 @@
+{
+  "name": "Clínica mediTicket (placeholder)",
+  "address": "123 Main St, Suite 100, Placeholder City",
+  "phone": "+1 (555) 000-0000",
+  "email": "contacto@example.com",
+  "hours": "Lunes a viernes, 9:00 am - 5:00 pm",
+  "paymentMethods": ["Tarjeta de crédito/débito vía Stripe Checkout"],
+  "cancellationPolicy": "Placeholder: contactar a la clínica con al menos 24 horas de anticipación para cancelar o reprogramar."
+}
