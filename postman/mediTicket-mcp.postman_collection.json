@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "mediTicket MCP",
+    "description": "Calls against mediTicket's MCP server (POST/GET/DELETE /api/mcp), which exposes buscar_horarios, listar_informacion, agendar_cita, and link_pago for a future chatbot integration. All requests need Authorization: Bearer {{mcp_api_key}} matching the MCP_API_KEY set in the server's .env.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{mcp_api_key}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "mcp_api_key", "value": "", "type": "string" },
+    { "key": "appointment_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Initialize",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-06-18\",\n    \"capabilities\": {},\n    \"clientInfo\": { \"name\": \"postman\", \"version\": \"1.0.0\" }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "List tools",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\"\n}"
+        }
+      }
+    },
+    {
+      "name": "buscar_horarios",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"buscar_horarios\",\n    \"arguments\": {\n      \"serviceId\": \"general-checkup\"\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "buscar_horarios (specific date)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 4,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"buscar_horarios\",\n    \"arguments\": {\n      \"serviceId\": \"general-checkup\",\n      \"date\": \"2026-09-14\"\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "listar_informacion",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 5,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"listar_informacion\",\n    \"arguments\": {}\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "agendar_cita",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Pulls the appointment id out of the tool's reply text and saves it",
+              "// as {{appointment_id}} so the link_pago request below can use it.",
+              "try {",
+              "  const body = pm.response.json();",
+              "  const text = body.result.content[0].text;",
+              "  const match = text.match(/ID:\\s*([a-zA-Z0-9]+)/);",
+              "  if (match) pm.collectionVariables.set('appointment_id', match[1]);",
+              "} catch (e) {}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 6,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"agendar_cita\",\n    \"arguments\": {\n      \"serviceId\": \"general-checkup\",\n      \"patientName\": \"Ana Test\",\n      \"patientEmail\": \"ana@example.com\",\n      \"date\": \"2026-09-14\",\n      \"time\": \"09:00\"\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "link_pago",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 7,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"link_pago\",\n    \"arguments\": {\n      \"appointmentId\": \"{{appointment_id}}\"\n    }\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "No auth (expect 401)",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{base_url}}/api/mcp", "host": ["{{base_url}}"], "path": ["api", "mcp"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 8,\n  \"method\": \"tools/list\"\n}"
+        }
+      }
+    }
+  ]
+}
