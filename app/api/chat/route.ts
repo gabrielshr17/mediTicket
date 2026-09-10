@@ -4,10 +4,11 @@ import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@an
 import { connectMcpSession, type McpSession } from "@/mcp/client";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
+const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-5";
 const MAX_TOOL_ROUNDTRIPS = 6;
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 4000;
+const MAX_RESPONSE_TOKENS = 4096;
 
 const SYSTEM_PROMPT = `Eres el asistente virtual de mediTicket, una clínica que permite reservar citas médicas en línea.
 Responde siempre en español, de forma breve y clara.
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
         for (let round = 0; round < MAX_TOOL_ROUNDTRIPS && !cancelled; round++) {
           const responseStream = anthropic.messages.stream({
             model: MODEL,
-            max_tokens: 1024,
+            max_tokens: MAX_RESPONSE_TOKENS,
             system: SYSTEM_PROMPT,
             tools,
             messages,
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
         if (lastStopReason === "tool_use" && !cancelled) {
           const finalStream = anthropic.messages.stream({
             model: MODEL,
-            max_tokens: 1024,
+            max_tokens: MAX_RESPONSE_TOKENS,
             system: SYSTEM_PROMPT,
             messages,
           });
@@ -155,7 +156,11 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encodeEvent({ type: "done" }));
       } catch (error) {
         console.error("[api/chat] agent loop failed", error);
-        controller.enqueue(encodeEvent({ type: "error", message: "Ocurrió un error al procesar tu mensaje." }));
+        const message =
+          error instanceof Anthropic.RateLimitError
+            ? "Estamos recibiendo muchas solicitudes en este momento. Intenta de nuevo en unos segundos."
+            : "Ocurrió un error al procesar tu mensaje.";
+        controller.enqueue(encodeEvent({ type: "error", message }));
       } finally {
         await mcp.close();
         controller.close();
