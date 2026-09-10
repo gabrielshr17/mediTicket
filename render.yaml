@@ -1,0 +1,19 @@
+services:
+  - name: mediticket
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        value: file:./prod.db
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: MCP_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
