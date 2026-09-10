@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPendingAppointment } from "@/lib/appointments";
 import { createCheckoutSessionForAppointment } from "@/lib/checkout";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? req.nextUrl.origin;
+    const baseUrl = getBaseUrl(req);
     const url = await createCheckoutSessionForAppointment(result.appointment, baseUrl);
 
     return NextResponse.json({ url });
