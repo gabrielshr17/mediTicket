@@ -2,17 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
-const originalKey = process.env.ANTHROPIC_API_KEY;
+const originalKey = process.env.OPENAI_API_KEY;
 
 beforeEach(() => {
-  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.OPENAI_API_KEY;
 });
 
 afterEach(() => {
   if (originalKey === undefined) {
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
   } else {
-    process.env.ANTHROPIC_API_KEY = originalKey;
+    process.env.OPENAI_API_KEY = originalKey;
   }
 });
 
@@ -25,7 +25,7 @@ function makeRequest(body: unknown) {
 }
 
 describe("POST /api/chat", () => {
-  it("returns 503 without calling Anthropic or MCP when ANTHROPIC_API_KEY is unset", async () => {
+  it("returns 503 without calling OpenAI or MCP when OPENAI_API_KEY is unset", async () => {
     const res = await POST(makeRequest({ messages: [{ role: "user", content: "hola" }] }));
 
     expect(res.status).toBe(503);
@@ -34,7 +34,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 400 when there is no trailing user message", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = "test-key";
 
     const res = await POST(makeRequest({ messages: [] }));
 
@@ -42,7 +42,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 400 when a message has a non-string role", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = "test-key";
 
     const res = await POST(makeRequest({ messages: [{ role: "system", content: "hola" }] }));
 
@@ -50,7 +50,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 400 when a message exceeds the length cap", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = "test-key";
 
     const res = await POST(makeRequest({ messages: [{ role: "user", content: "a".repeat(5000) }] }));
 
@@ -58,7 +58,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 400 when the history exceeds the message count cap", async () => {
-    process.env.ANTHROPIC_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = "test-key";
 
     const messages = Array.from({ length: 51 }, (_, i) => ({
       role: i % 2 === 0 ? "user" : "assistant",

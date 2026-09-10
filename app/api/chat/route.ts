@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages";
+import OpenAI from "openai";
+import type {
+  EasyInputMessage,
+  FunctionTool,
+  ResponseFunctionToolCall,
+  ResponseInput,
+} from "openai/resources/responses/responses";
 import { connectMcpSession, type McpSession } from "@/mcp/client";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 import { getBaseUrl } from "@/lib/baseUrl";
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-5";
+const MODEL = process.env.OPENAI_MODEL ?? "gpt-6-astra";
 const MAX_TOOL_ROUNDTRIPS = 6;
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 4000;
@@ -38,11 +43,11 @@ function isValidHistory(messages: unknown): messages is ChatMessage[] {
 }
 
 export async function GET() {
-  return NextResponse.json({ available: Boolean(process.env.ANTHROPIC_API_KEY) });
+  return NextResponse.json({ available: Boolean(process.env.OPENAI_API_KEY) });
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: "El asistente no está disponible en este momento." },
@@ -65,10 +70,10 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = getBaseUrl(req);
 
-  let anthropic: Anthropic;
+  let openai: OpenAI;
   let mcp: McpSession;
   try {
-    anthropic = new Anthropic({ apiKey });
+    openai = new OpenAI({ apiKey });
     mcp = await connectMcpSession(baseUrl);
   } catch (error) {
     console.error("[api/chat] failed to start chat session", error);
@@ -84,81 +89,81 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       try {
         const mcpTools = await mcp.listTools();
-        const tools: Tool[] = mcpTools.map((tool) => ({
+        const tools: FunctionTool[] = mcpTools.map((tool) => ({
+          type: "function",
           name: tool.name,
           description: tool.description ?? "",
-          input_schema: tool.inputSchema as Tool["input_schema"],
+          parameters: tool.inputSchema as Record<string, unknown>,
+          strict: false,
         }));
 
-        const messages: MessageParam[] = history.map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+        const input: ResponseInput = history.map(
+          (m): EasyInputMessage => ({ role: m.role, content: m.content })
+        );
 
-        let lastStopReason: string | null = null;
+        let sawFunctionCall = false;
 
         for (let round = 0; round < MAX_TOOL_ROUNDTRIPS && !cancelled; round++) {
-          const responseStream = anthropic.messages.stream({
+          const responseStream = openai.responses.stream({
             model: MODEL,
-            max_tokens: MAX_RESPONSE_TOKENS,
-            system: SYSTEM_PROMPT,
+            max_output_tokens: MAX_RESPONSE_TOKENS,
+            instructions: SYSTEM_PROMPT,
             tools,
-            messages,
+            input,
           });
 
-          responseStream.on("text", (delta) => {
-            controller.enqueue(encodeEvent({ type: "text", text: delta }));
+          responseStream.on("response.output_text.delta", (event) => {
+            controller.enqueue(encodeEvent({ type: "text", text: event.delta }));
           });
 
-          const finalMessage = await responseStream.finalMessage();
-          messages.push({ role: "assistant", content: finalMessage.content });
-          lastStopReason = finalMessage.stop_reason;
+          const response = await responseStream.finalResponse();
+          input.push(...(response.output as unknown as ResponseInput));
 
-          if (finalMessage.stop_reason !== "tool_use" || cancelled) break;
+          const functionCalls = response.output.filter(
+            (item) => item.type === "function_call"
+          ) as unknown as ResponseFunctionToolCall[];
 
-          const toolUseBlocks = finalMessage.content.filter(
-            (block): block is ToolUseBlock => block.type === "tool_use"
-          );
+          sawFunctionCall = functionCalls.length > 0;
+          if (!sawFunctionCall || cancelled) break;
 
-          const toolResults: ToolResultBlockParam[] = [];
-          for (const block of toolUseBlocks) {
+          for (const call of functionCalls) {
             if (cancelled) break;
 
-            controller.enqueue(encodeEvent({ type: "tool_call", tool: block.name, input: block.input }));
+            const args = JSON.parse(call.arguments) as Record<string, unknown>;
+            controller.enqueue(encodeEvent({ type: "tool_call", tool: call.name, input: args }));
 
-            const result = await mcp.callTool(block.name, block.input as Record<string, unknown>);
+            const result = await mcp.callTool(call.name, args);
 
             controller.enqueue(
-              encodeEvent({ type: "tool_result", tool: block.name, isError: result.isError, text: result.text })
+              encodeEvent({ type: "tool_result", tool: call.name, isError: result.isError, text: result.text })
             );
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: result.text,
-              is_error: result.isError,
+
+            input.push({
+              type: "function_call_output",
+              call_id: call.call_id,
+              output: result.text,
             });
           }
-          messages.push({ role: "user", content: toolResults });
         }
 
-        if (lastStopReason === "tool_use" && !cancelled) {
-          const finalStream = anthropic.messages.stream({
+        if (sawFunctionCall && !cancelled) {
+          const finalStream = openai.responses.stream({
             model: MODEL,
-            max_tokens: MAX_RESPONSE_TOKENS,
-            system: SYSTEM_PROMPT,
-            messages,
+            max_output_tokens: MAX_RESPONSE_TOKENS,
+            instructions: SYSTEM_PROMPT,
+            input,
           });
-          finalStream.on("text", (delta) => {
-            controller.enqueue(encodeEvent({ type: "text", text: delta }));
+          finalStream.on("response.output_text.delta", (event) => {
+            controller.enqueue(encodeEvent({ type: "text", text: event.delta }));
           });
-          await finalStream.finalMessage();
+          await finalStream.finalResponse();
         }
 
         controller.enqueue(encodeEvent({ type: "done" }));
       } catch (error) {
         console.error("[api/chat] agent loop failed", error);
         const message =
-          error instanceof Anthropic.RateLimitError
+          error instanceof OpenAI.RateLimitError
             ? "Estamos recibiendo muchas solicitudes en este momento. Intenta de nuevo en unos segundos."
             : "Ocurrió un error al procesar tu mensaje.";
         controller.enqueue(encodeEvent({ type: "error", message }));
