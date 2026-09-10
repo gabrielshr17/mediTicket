@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMcpServer } from "@/mcp/server";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.MCP_API_KEY;
@@ -23,7 +24,7 @@ async function handle(req: NextRequest): Promise<Response> {
   }
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? req.nextUrl.origin;
+    const baseUrl = getBaseUrl(req);
     const server = createMcpServer(baseUrl);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

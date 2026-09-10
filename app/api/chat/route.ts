@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, Tool, ToolResultBlockParam, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages";
 import { connectMcpSession, type McpSession } from "@/mcp/client";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
+import { getBaseUrl } from "@/lib/baseUrl";
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-5";
 const MAX_TOOL_ROUNDTRIPS = 6;
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   }
   const history = body.messages;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? req.nextUrl.origin;
+  const baseUrl = getBaseUrl(req);
 
   let anthropic: Anthropic;
   let mcp: McpSession;
