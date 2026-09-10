@@ -55,7 +55,7 @@ A floating assistant, backed by an LLM calling the MCP tools (`buscar_horarios`,
 
 **Input row.** Text input (`rounded-lg border border-gray-300 px-3 py-2`, matching the booking form's fields exactly) + a circular `bg-brand` send button, disabled with `opacity-50` while a response is streaming.
 
-**Unavailable state.** When the chat backend has no `ANTHROPIC_API_KEY` configured, the bubble still opens (hiding it would look like a bug), but the panel shows the header plus a centered notice — no input row — stating plainly: "El asistente no está disponible en este momento." No apology, no vague wording, matching the interface's existing error voice (`text-gray-500`, `text-sm`).
+**Unavailable state.** When the chat backend has no `OPENAI_API_KEY` configured, the bubble still opens (hiding it would look like a bug), but the panel shows the header plus a centered notice — no input row — stating plainly: "El asistente no está disponible en este momento." No apology, no vague wording, matching the interface's existing error voice (`text-gray-500`, `text-sm`).
 
 ## Known gaps
 
