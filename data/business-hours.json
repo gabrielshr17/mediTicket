@@ -1,0 +1,7 @@
+{
+  "openDays": [1, 2, 3, 4, 5],
+  "openTime": "09:00",
+  "closeTime": "17:00",
+  "slotIntervalMinutes": 30,
+  "daysAhead": 14
+}
