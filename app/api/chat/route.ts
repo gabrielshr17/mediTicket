@@ -10,7 +10,7 @@ import { connectMcpSession, type McpSession } from "@/mcp/client";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 import { getBaseUrl } from "@/lib/baseUrl";
 
-const MODEL = process.env.OPENAI_MODEL ?? "gpt-6-astra";
+const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-luna";
 const MAX_TOOL_ROUNDTRIPS = 6;
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 4000;
