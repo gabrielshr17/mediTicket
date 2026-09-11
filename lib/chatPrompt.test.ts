@@ -57,4 +57,10 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("never repeat the URL");
     expect(prompt).toContain("Pay now");
   });
+
+  it("tells the assistant not to list out the times the widget renders as buttons", async () => {
+    const prompt = await buildSystemPrompt(FRIDAY);
+
+    expect(prompt).toContain("do not list out the available times");
+  });
 });
