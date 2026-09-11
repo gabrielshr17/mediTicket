@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiClient } from "@/lib/apiClient";
 import type { ChatMessage } from "@/lib/chatEvents";
+import { extractPaymentUrl, extractSlotLines, mentionsAnyTime } from "@/lib/chatSlots";
 
 interface ToolResult {
   tool: string;
@@ -53,24 +54,13 @@ function SendIcon() {
   );
 }
 
-function extractPaymentUrl(text: string): string | null {
-  const match = text.match(/https:\/\/checkout\.stripe\.com\S*/);
-  return match ? match[0] : null;
-}
-
-function extractSlotLines(text: string): { date: string; times: string[] }[] {
-  return text
-    .split("\n")
-    .map((line) => line.match(/^- (\d{4}-\d{2}-\d{2}): (.+)$/))
-    .filter((match): match is RegExpMatchArray => match !== null)
-    .map((match) => ({ date: match[1], times: match[2].split(", ") }));
-}
-
 function ToolResultExtras({
   results,
+  assistantText,
   onSlotClick,
 }: {
   results: ToolResult[];
+  assistantText: string;
   onSlotClick: (date: string, time: string) => void;
 }) {
   return (
@@ -94,7 +84,7 @@ function ToolResultExtras({
           }
 
           const days = extractSlotLines(result.text);
-          if (days.length > 0) {
+          if (days.length > 0 && !mentionsAnyTime(assistantText, days)) {
             return (
               <div key={i} className="space-y-2">
                 {days.map((day) => (
@@ -270,7 +260,11 @@ export default function ChatWidget() {
                       }`}
                     >
                       {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
-                      <ToolResultExtras results={message.toolResults} onSlotClick={handleSlotClick} />
+                      <ToolResultExtras
+                        results={message.toolResults}
+                        assistantText={message.text}
+                        onSlotClick={handleSlotClick}
+                      />
                     </div>
                   </div>
                 ))}
