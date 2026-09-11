@@ -63,4 +63,11 @@ describe("buildSystemPrompt", () => {
 
     expect(prompt).toContain("do not list out the available times");
   });
+
+  it("tells the assistant it can check payment status instead of refusing", async () => {
+    const prompt = await buildSystemPrompt(FRIDAY);
+
+    expect(prompt).toContain("consultar_cita");
+    expect(prompt).toContain("never claim you cannot check");
+  });
 });

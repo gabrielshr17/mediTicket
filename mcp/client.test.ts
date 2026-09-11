@@ -9,7 +9,7 @@ afterEach(async () => {
 });
 
 describe("connectMcpSession", () => {
-  it("lists the four mediTicket tools with their schemas", async () => {
+  it("lists the mediTicket tools with their schemas", async () => {
     session = await connectMcpSession("http://localhost:3000");
 
     const tools = await session.listTools();
@@ -17,6 +17,7 @@ describe("connectMcpSession", () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       "agendar_cita",
       "buscar_horarios",
+      "consultar_cita",
       "link_pago",
       "listar_informacion",
     ]);
