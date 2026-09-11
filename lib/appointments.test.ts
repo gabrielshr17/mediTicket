@@ -86,8 +86,8 @@ describe("createPendingAppointment", () => {
     expect(result).toEqual({
       ok: false,
       status: 400,
-      code: "INVALID_INPUT",
-      error: "Invalid booking details",
+      code: "INVALID_EMAIL",
+      error: "Please enter a valid email address.",
     });
     expect(prisma.appointment.create).not.toHaveBeenCalled();
   });
@@ -99,7 +99,7 @@ describe("createPendingAppointment", () => {
       ok: false,
       status: 400,
       code: "PAST_DATE",
-      error: "Please choose a valid future date and time",
+      error: "Please choose a date and time in the future.",
     });
   });
 
@@ -112,7 +112,7 @@ describe("createPendingAppointment", () => {
       ok: false,
       status: 404,
       code: "SERVICE_NOT_FOUND",
-      error: "Service not found",
+      error: "That service could not be found.",
     });
   });
 

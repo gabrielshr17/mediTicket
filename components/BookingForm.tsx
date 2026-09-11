@@ -25,7 +25,7 @@ export default function BookingForm() {
         setServices(services);
         setSelectedServiceId(services[0]?.id ?? "");
       })
-      .catch(() => setLoadError("Could not load services. Please refresh."));
+      .catch(() => setLoadError("Could not load the list of services. Check your connection and refresh the page."));
   }, []);
 
   const selectedService = services.find((service) => service.id === selectedServiceId);
@@ -35,8 +35,24 @@ export default function BookingForm() {
     e.preventDefault();
     setSubmitError(null);
 
-    if (!selectedServiceId || !date || !time || !patientName.trim() || !patientEmail.trim()) {
-      setSubmitError("Please fill in every field.");
+    if (!selectedServiceId) {
+      setSubmitError("Please choose a service.");
+      return;
+    }
+    if (!date) {
+      setSubmitError("Please choose a date.");
+      return;
+    }
+    if (!time) {
+      setSubmitError("Please choose a time.");
+      return;
+    }
+    if (!patientName.trim()) {
+      setSubmitError("Please enter your full name.");
+      return;
+    }
+    if (!patientEmail.trim()) {
+      setSubmitError("Please enter your email address.");
       return;
     }
 
@@ -51,7 +67,9 @@ export default function BookingForm() {
       });
       window.location.href = url;
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Something went wrong.");
+      setSubmitError(
+        error instanceof Error ? error.message : "Something went wrong. Please try again."
+      );
       setLoading(false);
     }
   }

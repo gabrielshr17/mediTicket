@@ -14,6 +14,11 @@ export interface BookingInput {
 
 export type CreateAppointmentErrorCode =
   | "INVALID_INPUT"
+  | "MISSING_SERVICE"
+  | "MISSING_NAME"
+  | "INVALID_EMAIL"
+  | "MISSING_DATE"
+  | "MISSING_TIME"
   | "PAST_DATE"
   | "SERVICE_NOT_FOUND"
   | "SLOT_TAKEN";
@@ -32,13 +37,34 @@ export async function createPendingAppointment(
     typeof patientName !== "string" ||
     typeof patientEmail !== "string" ||
     typeof date !== "string" ||
-    typeof time !== "string" ||
-    !patientName.trim() ||
-    !EMAIL_RE.test(patientEmail) ||
-    !date ||
-    !time
+    typeof time !== "string"
   ) {
-    return { ok: false, status: 400, code: "INVALID_INPUT", error: "Invalid booking details" };
+    return {
+      ok: false,
+      status: 400,
+      code: "INVALID_INPUT",
+      error: "Some booking details are missing.",
+    };
+  }
+  if (!serviceId.trim()) {
+    return { ok: false, status: 400, code: "MISSING_SERVICE", error: "Please choose a service." };
+  }
+  if (!patientName.trim()) {
+    return { ok: false, status: 400, code: "MISSING_NAME", error: "Please enter your full name." };
+  }
+  if (!EMAIL_RE.test(patientEmail)) {
+    return {
+      ok: false,
+      status: 400,
+      code: "INVALID_EMAIL",
+      error: "Please enter a valid email address.",
+    };
+  }
+  if (!date) {
+    return { ok: false, status: 400, code: "MISSING_DATE", error: "Please choose a date." };
+  }
+  if (!time) {
+    return { ok: false, status: 400, code: "MISSING_TIME", error: "Please choose a time." };
   }
 
   const appointmentDateTime = new Date(`${date}T${time}`);
@@ -47,13 +73,13 @@ export async function createPendingAppointment(
       ok: false,
       status: 400,
       code: "PAST_DATE",
-      error: "Please choose a valid future date and time",
+      error: "Please choose a date and time in the future.",
     };
   }
 
   const service = await getServiceById(serviceId);
   if (!service) {
-    return { ok: false, status: 404, code: "SERVICE_NOT_FOUND", error: "Service not found" };
+    return { ok: false, status: 404, code: "SERVICE_NOT_FOUND", error: "That service could not be found." };
   }
 
   try {
