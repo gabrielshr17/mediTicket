@@ -11,6 +11,7 @@ import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 import { getBaseUrl } from "@/lib/baseUrl";
 import { buildSystemPrompt } from "@/lib/chatPrompt";
 import { checkRateLimit, getClientId, type RateLimitReason } from "@/lib/rateLimit";
+import { toInputItems } from "@/lib/openaiInput";
 import { isSameOriginRequest } from "@/lib/requestOrigin";
 
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-luna";
@@ -185,7 +186,7 @@ export async function POST(req: NextRequest) {
           });
 
           const response = await responseStream.finalResponse();
-          input.push(...(response.output as unknown as ResponseInput));
+          input.push(...toInputItems(response.output));
 
           const functionCalls = response.output.filter(
             (item) => item.type === "function_call"
