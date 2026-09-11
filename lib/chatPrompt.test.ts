@@ -50,4 +50,11 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("BE PROACTIVE");
     expect(prompt.toLowerCase()).toContain("move the booking forward");
   });
+
+  it("tells the assistant not to repeat the payment URL the widget already renders as a button", async () => {
+    const prompt = await buildSystemPrompt(FRIDAY);
+
+    expect(prompt).toContain("never repeat the URL");
+    expect(prompt).toContain("Pay now");
+  });
 });
