@@ -9,37 +9,90 @@ import type {
 import { connectMcpSession, type McpSession } from "@/mcp/client";
 import type { ChatMessage, ChatStreamEvent } from "@/lib/chatEvents";
 import { getBaseUrl } from "@/lib/baseUrl";
+import { buildSystemPrompt } from "@/lib/chatPrompt";
+import { checkRateLimit, getClientId, type RateLimitReason } from "@/lib/rateLimit";
+import { isSameOriginRequest } from "@/lib/requestOrigin";
 
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-luna";
-const MAX_TOOL_ROUNDTRIPS = 6;
-const MAX_MESSAGES = 50;
-const MAX_MESSAGE_LENGTH = 4000;
-const MAX_RESPONSE_TOKENS = 4096;
+const MAX_TOOL_ROUNDTRIPS = 4;
+const MAX_MESSAGES = 20;
+const MAX_MESSAGE_LENGTH = 1000;
+const MAX_TOTAL_CHARS = 8000;
+const MAX_RESPONSE_TOKENS = 800;
 
-const SYSTEM_PROMPT = `Eres el asistente virtual de mediTicket, una clínica que permite reservar citas médicas en línea.
-Responde siempre en español, de forma breve y clara.
-Usa las herramientas disponibles para responder con información real: nunca inventes horarios, precios, servicios ni datos de citas.
-Para reservar una cita necesitas: servicio, nombre completo, correo electrónico, fecha y hora. Pide los datos que falten antes de llamar a agendar_cita.
-Después de reservar una cita con agendar_cita, ofrece generar el link de pago con link_pago.`;
+const UNAVAILABLE = "The assistant is temporarily unavailable. You can still book using the form above.";
+const CONVERSATION_TOO_LONG = "This conversation has gotten too long. Start a new chat to continue.";
+
+type HistoryCheck = { ok: true; messages: ChatMessage[] } | { ok: false; error: string };
 
 function encodeEvent(data: ChatStreamEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function isValidHistory(messages: unknown): messages is ChatMessage[] {
-  if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
-    return false;
-  }
-  return messages.every(
-    (m): m is ChatMessage =>
-      typeof m === "object" &&
-      m !== null &&
-      (m as ChatMessage).role !== undefined &&
-      ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant") &&
-      typeof (m as ChatMessage).content === "string" &&
-      (m as ChatMessage).content.trim().length > 0 &&
-      (m as ChatMessage).content.length <= MAX_MESSAGE_LENGTH
+function isChatMessage(value: unknown): value is ChatMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const message = value as ChatMessage;
+  return (
+    (message.role === "user" || message.role === "assistant") && typeof message.content === "string"
   );
+}
+
+function validateHistory(messages: unknown): HistoryCheck {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { ok: false, error: "No message was sent." };
+  }
+  if (messages.length > MAX_MESSAGES) {
+    return { ok: false, error: CONVERSATION_TOO_LONG };
+  }
+
+  let totalChars = 0;
+  for (const message of messages) {
+    if (!isChatMessage(message)) {
+      return { ok: false, error: "This conversation contains a message we could not read." };
+    }
+    if (message.content.trim().length === 0) {
+      return { ok: false, error: "Your message is empty." };
+    }
+    if (message.content.length > MAX_MESSAGE_LENGTH) {
+      return {
+        ok: false,
+        error: `Your message is too long (${message.content.length} characters, max ${MAX_MESSAGE_LENGTH}).`,
+      };
+    }
+    totalChars += message.content.length;
+  }
+
+  if (totalChars > MAX_TOTAL_CHARS) {
+    return { ok: false, error: CONVERSATION_TOO_LONG };
+  }
+  if (messages[messages.length - 1].role !== "user") {
+    return { ok: false, error: "Expected your message to come last." };
+  }
+
+  return { ok: true, messages: messages as ChatMessage[] };
+}
+
+function rateLimitMessage(reason: RateLimitReason): string {
+  switch (reason) {
+    case "per_minute":
+      return "You are sending messages too quickly. Wait a few seconds and try again.";
+    case "per_day":
+      return "You have reached today's message limit. Please try again tomorrow, or use the booking form above.";
+    case "global_daily":
+      return UNAVAILABLE;
+  }
+}
+
+function isQuotaError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { code?: unknown; type?: unknown };
+  return candidate.code === "credit_balance_exhausted" || candidate.type === "insufficient_quota";
+}
+
+function withDevDetail(message: string, error: unknown): string {
+  if (process.env.NODE_ENV === "production") return message;
+  const detail = error instanceof Error ? error.message : String(error);
+  return `${message} [dev detail: ${detail}]`;
 }
 
 export async function GET() {
@@ -47,11 +100,27 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json({ error: UNAVAILABLE }, { status: 503 });
+  }
+
+  if (!isSameOriginRequest(req)) {
     return NextResponse.json(
-      { error: "El asistente no está disponible en este momento." },
-      { status: 503 }
+      { error: "This request must come from the mediTicket website." },
+      { status: 403 }
+    );
+  }
+
+  const limit = checkRateLimit("chat", getClientId(req));
+  if (!limit.ok && limit.reason) {
+    return NextResponse.json(
+      { error: rateLimitMessage(limit.reason) },
+      {
+        status: limit.reason === "global_daily" ? 503 : 429,
+        headers: limit.retryAfterSeconds
+          ? { "Retry-After": String(limit.retryAfterSeconds) }
+          : undefined,
+      }
     );
   }
 
@@ -60,27 +129,26 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch (error) {
     console.error("[api/chat] invalid JSON body", error);
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: "We could not read your message." }, { status: 400 });
   }
 
-  if (!isValidHistory(body.messages) || body.messages[body.messages.length - 1].role !== "user") {
-    return NextResponse.json({ error: "Invalid chat history" }, { status: 400 });
+  const history = validateHistory(body.messages);
+  if (!history.ok) {
+    return NextResponse.json({ error: history.error }, { status: 400 });
   }
-  const history = body.messages;
 
   const baseUrl = getBaseUrl(req);
 
   let openai: OpenAI;
   let mcp: McpSession;
+  let systemPrompt: string;
   try {
-    openai = new OpenAI({ apiKey });
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    systemPrompt = await buildSystemPrompt();
     mcp = await connectMcpSession(baseUrl);
   } catch (error) {
     console.error("[api/chat] failed to start chat session", error);
-    return NextResponse.json(
-      { error: "El asistente no está disponible en este momento." },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: withDevDetail(UNAVAILABLE, error) }, { status: 503 });
   }
 
   let cancelled = false;
@@ -97,7 +165,7 @@ export async function POST(req: NextRequest) {
           strict: false,
         }));
 
-        const input: ResponseInput = history.map(
+        const input: ResponseInput = history.messages.map(
           (m): EasyInputMessage => ({ role: m.role, content: m.content })
         );
 
@@ -107,7 +175,7 @@ export async function POST(req: NextRequest) {
           const responseStream = openai.responses.stream({
             model: MODEL,
             max_output_tokens: MAX_RESPONSE_TOKENS,
-            instructions: SYSTEM_PROMPT,
+            instructions: systemPrompt,
             tools,
             input,
           });
@@ -150,7 +218,7 @@ export async function POST(req: NextRequest) {
           const finalStream = openai.responses.stream({
             model: MODEL,
             max_output_tokens: MAX_RESPONSE_TOKENS,
-            instructions: SYSTEM_PROMPT,
+            instructions: systemPrompt,
             input,
           });
           finalStream.on("response.output_text.delta", (event) => {
@@ -162,11 +230,13 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encodeEvent({ type: "done" }));
       } catch (error) {
         console.error("[api/chat] agent loop failed", error);
-        const message =
+        const base =
           error instanceof OpenAI.RateLimitError
-            ? "Estamos recibiendo muchas solicitudes en este momento. Intenta de nuevo en unos segundos."
-            : "Ocurrió un error al procesar tu mensaje.";
-        controller.enqueue(encodeEvent({ type: "error", message }));
+            ? "The assistant is busy right now. Please try again in a few seconds."
+            : isQuotaError(error)
+              ? UNAVAILABLE
+              : "Something went wrong on our end. Please try again, or use the booking form above.";
+        controller.enqueue(encodeEvent({ type: "error", message: withDevDetail(base, error) }));
       } finally {
         await mcp.close();
         controller.close();
