@@ -16,6 +16,15 @@ interface DisplayMessage {
   toolResults: ToolResult[];
 }
 
+const GREETING =
+  "Hi! I can check appointment availability, answer questions about our services and hours, book you in, and send you a payment link. What would you like to do?";
+
+const SUGGESTIONS = [
+  "What services do you offer?",
+  "When is the next available appointment?",
+  "What are your opening hours?",
+];
+
 function ChatIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -79,7 +88,7 @@ function ToolResultExtras({
                 rel="noopener noreferrer"
                 className="block w-full rounded-lg bg-brand py-3 text-center font-semibold text-white transition hover:bg-brand-dark"
               >
-                Pagar ahora
+                Pay now
               </a>
             );
           }
@@ -177,7 +186,9 @@ export default function ChatWidget() {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         updateAssistant((m) => ({
           ...m,
-          text: m.text || (error instanceof Error ? error.message : "No se pudo conectar con el asistente."),
+          text:
+            m.text ||
+            (error instanceof Error ? error.message : "Could not reach the assistant. Please try again."),
         }));
       }
     } finally {
@@ -193,7 +204,7 @@ export default function ChatWidget() {
   }
 
   function handleSlotClick(date: string, time: string) {
-    setInput(`Quiero reservar el ${date} a las ${time}.`);
+    setInput(`I would like to book ${date} at ${time}.`);
   }
 
   function closePanel() {
@@ -206,7 +217,7 @@ export default function ChatWidget() {
       <button
         type="button"
         onClick={() => (isOpen ? closePanel() : setIsOpen(true))}
-        aria-label={isOpen ? "Cerrar chat" : "Abrir chat"}
+        aria-label={isOpen ? "Close chat" : "Open chat"}
         className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-lg transition hover:bg-brand-dark sm:bottom-6 sm:right-6"
       >
         {isOpen ? <CloseIcon /> : <ChatIcon />}
@@ -215,19 +226,42 @@ export default function ChatWidget() {
       {isOpen && (
         <div className="fixed inset-x-0 bottom-0 top-14 z-40 flex flex-col rounded-t-2xl bg-white shadow-lg sm:inset-x-auto sm:bottom-20 sm:right-6 sm:top-auto sm:h-[32rem] sm:w-96 sm:rounded-2xl sm:border sm:border-gray-200">
           <header className="flex items-center justify-between rounded-t-2xl bg-brand px-4 py-3 text-white">
-            <span className="font-semibold">Asistente mediTicket</span>
-            <button type="button" onClick={closePanel} aria-label="Cerrar chat">
+            <span className="font-semibold">mediTicket Assistant</span>
+            <button type="button" onClick={closePanel} aria-label="Close chat">
               <CloseIcon />
             </button>
           </header>
 
           {available === false ? (
             <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-gray-500">
-              El asistente no está disponible en este momento.
+              The assistant is unavailable right now. You can still book using the form on this page.
             </div>
           ) : (
             <>
               <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+                {messages.length === 0 && (
+                  <div className="space-y-3">
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-lg bg-teal-50 px-3 py-2 text-sm text-gray-900">
+                        {GREETING}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {SUGGESTIONS.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          disabled={isStreaming || available === null}
+                          onClick={() => void sendMessage(suggestion)}
+                          className="rounded-lg border border-brand px-3 py-1.5 text-sm text-brand transition hover:bg-brand/5 disabled:opacity-50"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {messages.map((message, i) => (
                   <div key={i} className={message.role === "user" ? "flex justify-end" : "flex justify-start"}>
                     <div
@@ -247,14 +281,15 @@ export default function ChatWidget() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Escribe tu mensaje..."
+                  placeholder="Type your message..."
+                  maxLength={1000}
                   disabled={isStreaming || available === null}
                   className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
                 />
                 <button
                   type="submit"
                   disabled={isStreaming || available === null || !input.trim()}
-                  aria-label="Enviar"
+                  aria-label="Send"
                   className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand-dark disabled:opacity-50"
                 >
                   <SendIcon />

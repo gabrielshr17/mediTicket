@@ -1,6 +1,7 @@
 import { getServiceById } from "@/lib/services";
 import { getBusinessHours } from "@/lib/businessHours";
 import { prisma } from "@/lib/prisma";
+import { toDateString } from "@/lib/dates";
 
 export interface AvailableSlot {
   date: string;
@@ -8,13 +9,6 @@ export interface AvailableSlot {
 }
 
 const BOOKED_STATUSES = ["pending", "paid"];
-
-function formatDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function parseTimeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
@@ -50,7 +44,7 @@ export async function getAvailableSlots(
 
     if (!hours.openDays.includes(day.getDay())) continue;
 
-    const dateStr = formatDate(day);
+    const dateStr = toDateString(day);
     for (
       let minutes = openMinutes;
       minutes + service.durationMinutes <= closeMinutes;

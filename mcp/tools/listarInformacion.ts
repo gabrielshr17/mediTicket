@@ -6,8 +6,8 @@ export function registerListarInformacion(server: McpServer) {
   server.registerTool(
     "listar_informacion",
     {
-      title: "Listar información",
-      description: "Ofrece información general de la clínica y el catálogo de servicios disponibles.",
+      title: "Clinic information",
+      description: "Provides general clinic information and the catalogue of available services.",
       inputSchema: {},
     },
     async () => {
@@ -19,14 +19,14 @@ export function registerListarInformacion(server: McpServer) {
 
       const text = [
         info.name,
-        `Dirección: ${info.address}`,
-        `Teléfono: ${info.phone}`,
-        `Correo: ${info.email}`,
-        `Horario de atención: ${info.hours}`,
-        `Métodos de pago: ${info.paymentMethods.join(", ")}`,
-        `Política de cancelación: ${info.cancellationPolicy}`,
+        `Address: ${info.address}`,
+        `Phone: ${info.phone}`,
+        `Email: ${info.email}`,
+        `Opening hours: ${info.hours}`,
+        `Payment methods: ${info.paymentMethods.join(", ")}`,
+        `Cancellation policy: ${info.cancellationPolicy}`,
         "",
-        "Servicios disponibles:",
+        "Available services:",
         ...serviceLines,
       ].join("\n");
 

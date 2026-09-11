@@ -31,7 +31,7 @@ describe("connectMcpSession", () => {
     const result = await session.callTool("listar_informacion", {});
 
     expect(result.isError).toBe(false);
-    expect(result.text).toContain("Servicios disponibles");
+    expect(result.text).toContain("Available services");
   });
 
   it("reports isError for a tool call with a missing required argument", async () => {
