@@ -7,12 +7,12 @@ export function registerBuscarHorarios(server: McpServer) {
   server.registerTool(
     "buscar_horarios",
     {
-      title: "Buscar horarios",
+      title: "Search availability",
       description:
-        "Muestra los horarios disponibles para un servicio, opcionalmente en una fecha específica.",
+        "Lists available appointment times for a service, optionally on a specific date.",
       inputSchema: {
-        serviceId: z.string().describe("ID del servicio, por ejemplo 'general-checkup'"),
-        date: z.string().optional().describe("Fecha específica en formato YYYY-MM-DD (opcional)"),
+        serviceId: z.string().describe("Service id, for example 'general-checkup'"),
+        date: z.string().optional().describe("Specific date in YYYY-MM-DD format (optional)"),
       },
     },
     async ({ serviceId, date }) => {
@@ -20,7 +20,7 @@ export function registerBuscarHorarios(server: McpServer) {
       if (!service) {
         return {
           isError: true,
-          content: [{ type: "text", text: `No se encontró el servicio "${serviceId}".` }],
+          content: [{ type: "text", text: `No service found with id "${serviceId}".` }],
         };
       }
 
@@ -36,7 +36,7 @@ export function registerBuscarHorarios(server: McpServer) {
             content: [
               {
                 type: "text",
-                text: `No hay horarios disponibles para ${service.name}${date ? ` el ${date}` : ""}.`,
+                text: `No times are available for ${service.name}${date ? ` on ${date}` : ""}.`,
               },
             ],
           };
@@ -52,7 +52,7 @@ export function registerBuscarHorarios(server: McpServer) {
 
         return {
           content: [
-            { type: "text", text: `Horarios disponibles para ${service.name}:\n${lines.join("\n")}` },
+            { type: "text", text: `Available times for ${service.name}:\n${lines.join("\n")}` },
           ],
         };
       } catch (error) {
@@ -60,7 +60,7 @@ export function registerBuscarHorarios(server: McpServer) {
         return {
           isError: true,
           content: [
-            { type: "text", text: "No se pudieron calcular los horarios disponibles en este momento." },
+            { type: "text", text: "Availability could not be calculated right now." },
           ],
         };
       }

@@ -7,10 +7,10 @@ export function registerLinkPago(server: McpServer, baseUrl: string) {
   server.registerTool(
     "link_pago",
     {
-      title: "Link de pago",
-      description: "Genera y envía el link de pago de Stripe para una cita ya reservada.",
+      title: "Payment link",
+      description: "Generates the Stripe payment link for an appointment that has already been booked.",
       inputSchema: {
-        appointmentId: z.string().describe("ID de la cita devuelto por agendar_cita"),
+        appointmentId: z.string().describe("Appointment id returned by agendar_cita"),
       },
     },
     async ({ appointmentId }) => {
@@ -18,21 +18,21 @@ export function registerLinkPago(server: McpServer, baseUrl: string) {
       if (!appointment) {
         return {
           isError: true,
-          content: [{ type: "text" as const, text: "No se encontró la cita indicada." }],
+          content: [{ type: "text" as const, text: "That appointment could not be found." }],
         };
       }
       if (appointment.status === "paid") {
-        return { content: [{ type: "text" as const, text: "Esta cita ya fue pagada." }] };
+        return { content: [{ type: "text" as const, text: "This appointment has already been paid." }] };
       }
 
       try {
         const url = await createCheckoutSessionForAppointment(appointment, baseUrl);
-        return { content: [{ type: "text" as const, text: `Link de pago: ${url}` }] };
+        return { content: [{ type: "text" as const, text: `Payment link: ${url}` }] };
       } catch (error) {
         console.error("[mcp/link_pago] failed to create checkout session", error);
         return {
           isError: true,
-          content: [{ type: "text" as const, text: "No se pudo generar el link de pago en este momento." }],
+          content: [{ type: "text" as const, text: "The payment link could not be generated right now." }],
         };
       }
     }

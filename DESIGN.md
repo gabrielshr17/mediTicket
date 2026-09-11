@@ -44,18 +44,20 @@ A floating assistant, backed by an LLM calling the MCP tools (`buscar_horarios`,
 **Panel.**
 - Base (< 640px): near-full-screen sheet — `fixed inset-x-0 bottom-0 top-14`, so the page peeks above it like a native bottom sheet. `rounded-t-2xl`.
 - `sm:` (≥ 640px): fixed floating panel, `w-96 h-[32rem]`, anchored `bottom-20 right-6`, `rounded-2xl shadow-lg`, `border border-gray-200` (matches the card border weight used elsewhere).
-- Structure: header (`bg-brand text-white`, title "Asistente mediTicket" + close button) — message list (`flex-1 overflow-y-auto`) — input row pinned to the bottom.
+- Structure: header (`bg-brand text-white`, title "mediTicket Assistant" + close button) — message list (`flex-1 overflow-y-auto`) — input row pinned to the bottom.
 
 **Messages.**
 - User: right-aligned, `bg-brand text-white`, `rounded-lg`, max-width ~80%.
 - Assistant: left-aligned, `bg-teal-50 text-gray-900`, `rounded-lg` — a light tint pulled from the same hue as `brand` (Tailwind's `teal-700`), not a new color.
 - Tool-driven content gets its own treatment so it reads as *data*, not prose:
   - Available slots (`buscar_horarios`): a wrapped row of pill buttons — `rounded-lg border border-brand text-brand text-sm px-3 py-1.5`, hover fills `bg-brand/5`. Tapping one fills the input with a booking request for that slot rather than making the user retype it.
-  - Payment link (`link_pago`): rendered as a full-width button styled exactly like the booking form's submit button (`rounded-lg bg-brand py-3 font-semibold text-white hover:bg-brand-dark`) with label "Pagar ahora" — the same visual verb as "Reserve & Pay", so it reads as the same kind of action.
+  - Payment link (`link_pago`): rendered as a full-width button styled exactly like the booking form's submit button (`rounded-lg bg-brand py-3 font-semibold text-white hover:bg-brand-dark`) with label "Pay now" — the same visual verb as "Reserve & Pay", so it reads as the same kind of action.
+
+**Empty state.** Before the first message the panel shows a static greeting bubble naming what the assistant can do, followed by a row of suggestion chips (same outlined pill treatment as the slot buttons) that send a question on tap. It is rendered client-side, so the proactive opening costs no tokens.
 
 **Input row.** Text input (`rounded-lg border border-gray-300 px-3 py-2`, matching the booking form's fields exactly) + a circular `bg-brand` send button, disabled with `opacity-50` while a response is streaming.
 
-**Unavailable state.** When the chat backend has no `OPENAI_API_KEY` configured, the bubble still opens (hiding it would look like a bug), but the panel shows the header plus a centered notice — no input row — stating plainly: "El asistente no está disponible en este momento." No apology, no vague wording, matching the interface's existing error voice (`text-gray-500`, `text-sm`).
+**Unavailable state.** When the chat backend has no `OPENAI_API_KEY` configured, the bubble still opens (hiding it would look like a bug), but the panel shows the header plus a centered notice — no input row — stating plainly: "The assistant is unavailable right now. You can still book using the form on this page." It names a way forward rather than dead-ending the user. No apology, no vague wording, matching the interface's existing error voice (`text-gray-500`, `text-sm`).
 
 ## Known gaps
 
