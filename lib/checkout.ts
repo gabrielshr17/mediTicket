@@ -41,3 +41,20 @@ export async function createCheckoutSessionForAppointment(
 
   return session.url;
 }
+
+export async function syncAppointmentPayment(appointment: Appointment): Promise<Appointment> {
+  if (appointment.status === "paid" || !appointment.stripeSessionId) return appointment;
+
+  try {
+    const session = await getStripe().checkout.sessions.retrieve(appointment.stripeSessionId);
+    if (session.payment_status !== "paid") return appointment;
+
+    return await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: { status: "paid" },
+    });
+  } catch (error) {
+    console.error("[lib/checkout] could not verify payment with Stripe", error);
+    return appointment;
+  }
+}

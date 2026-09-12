@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getAppointmentById } from "@/lib/appointments";
+import { syncAppointmentPayment } from "@/lib/checkout";
 
 const STATUS_TEXT: Record<string, string> = {
   pending: "awaiting payment",
@@ -13,7 +14,7 @@ export function registerConsultarCita(server: McpServer) {
     {
       title: "Check appointment",
       description:
-        "Looks up a booked appointment by its id and reports whether it has been paid. Use this when the customer asks about the status of their booking or says they have already paid.",
+        "Looks up a booked appointment by its id and reports whether it has been paid, checking directly with the payment provider. Use this when the customer asks about the status of their booking or says they have already paid.",
       inputSchema: {
         appointmentId: z.string().describe("Appointment id returned by agendar_cita"),
       },
@@ -28,13 +29,14 @@ export function registerConsultarCita(server: McpServer) {
         };
       }
 
-      const status = STATUS_TEXT[appointment.status] ?? appointment.status;
+      const verified = await syncAppointmentPayment(appointment);
+      const status = STATUS_TEXT[verified.status] ?? verified.status;
 
       return {
         content: [
           {
             type: "text" as const,
-            text: `Appointment ${appointment.id}: ${appointment.serviceName} on ${appointment.date} at ${appointment.time}. Status: ${status}.`,
+            text: `Appointment ${verified.id}: ${verified.serviceName} on ${verified.date} at ${verified.time}. Status: ${status}.`,
           },
         ],
       };

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const createSession = vi.fn();
+const retrieveSession = vi.fn();
 
 vi.mock("@/lib/stripe", () => ({
   getStripe: () => ({
-    checkout: { sessions: { create: createSession } },
+    checkout: { sessions: { create: createSession, retrieve: retrieveSession } },
   }),
 }));
 vi.mock("@/lib/prisma", () => ({
@@ -16,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
-import { createCheckoutSessionForAppointment } from "@/lib/checkout";
+import { createCheckoutSessionForAppointment, syncAppointmentPayment } from "@/lib/checkout";
 
 const APPOINTMENT = {
   id: "apt_1",
@@ -75,5 +76,55 @@ describe("createCheckoutSessionForAppointment", () => {
     await expect(
       createCheckoutSessionForAppointment(APPOINTMENT, "https://mediticket.example")
     ).rejects.toThrow("Stripe did not return a checkout URL");
+  });
+});
+
+describe("syncAppointmentPayment", () => {
+  it("marks a pending appointment paid when Stripe says the session was paid", async () => {
+    const pending = { ...APPOINTMENT, stripeSessionId: "cs_test_123" };
+    retrieveSession.mockResolvedValue({ payment_status: "paid" });
+    vi.mocked(prisma.appointment.update).mockResolvedValue({ ...pending, status: "paid" });
+
+    const result = await syncAppointmentPayment(pending);
+
+    expect(retrieveSession).toHaveBeenCalledWith("cs_test_123");
+    expect(prisma.appointment.update).toHaveBeenCalledWith({
+      where: { id: pending.id },
+      data: { status: "paid" },
+    });
+    expect(result.status).toBe("paid");
+  });
+
+  it("leaves it pending when Stripe says the session is unpaid", async () => {
+    const pending = { ...APPOINTMENT, stripeSessionId: "cs_test_123" };
+    retrieveSession.mockResolvedValue({ payment_status: "unpaid" });
+
+    const result = await syncAppointmentPayment(pending);
+
+    expect(result.status).toBe("pending");
+    expect(prisma.appointment.update).not.toHaveBeenCalled();
+  });
+
+  it("does not call Stripe for an appointment that is already paid", async () => {
+    const result = await syncAppointmentPayment({ ...APPOINTMENT, status: "paid" });
+
+    expect(retrieveSession).not.toHaveBeenCalled();
+    expect(result.status).toBe("paid");
+  });
+
+  it("does not call Stripe when no checkout session was ever created", async () => {
+    const result = await syncAppointmentPayment({ ...APPOINTMENT, stripeSessionId: null });
+
+    expect(retrieveSession).not.toHaveBeenCalled();
+    expect(result.status).toBe("pending");
+  });
+
+  it("falls back to the stored status when Stripe is unreachable", async () => {
+    const pending = { ...APPOINTMENT, stripeSessionId: "cs_test_123" };
+    retrieveSession.mockRejectedValue(new Error("stripe is down"));
+
+    const result = await syncAppointmentPayment(pending);
+
+    expect(result.status).toBe("pending");
   });
 });
