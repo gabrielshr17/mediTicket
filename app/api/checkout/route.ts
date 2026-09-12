@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPendingAppointment } from "@/lib/appointments";
 import { createCheckoutSessionForAppointment } from "@/lib/checkout";
 import { getBaseUrl } from "@/lib/baseUrl";
+import { enqueueBookingEmail } from "@/lib/queue/emailQueue";
 import { checkRateLimit, getClientId } from "@/lib/rateLimit";
 import { isSameOriginRequest } from "@/lib/requestOrigin";
 
@@ -35,6 +36,16 @@ export async function POST(req: NextRequest) {
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
+
+    void enqueueBookingEmail({
+      appointmentId: result.appointment.id,
+      to: result.appointment.patientEmail,
+      patientName: result.appointment.patientName,
+      serviceName: result.appointment.serviceName,
+      date: result.appointment.date,
+      time: result.appointment.time,
+      priceCents: result.appointment.priceCents,
+    });
 
     const baseUrl = getBaseUrl(req);
     const url = await createCheckoutSessionForAppointment(result.appointment, baseUrl);

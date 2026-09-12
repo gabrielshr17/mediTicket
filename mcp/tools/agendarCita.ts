@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createPendingAppointment, type CreateAppointmentErrorCode } from "@/lib/appointments";
+import { enqueueBookingEmail } from "@/lib/queue/emailQueue";
 
 const ERROR_MESSAGES: Record<CreateAppointmentErrorCode, string> = {
   INVALID_INPUT: "The booking details are not valid. Check the name, email, date and time.",
@@ -37,6 +38,16 @@ export function registerAgendarCita(server: McpServer) {
           content: [{ type: "text" as const, text: ERROR_MESSAGES[result.code] }],
         };
       }
+
+      void enqueueBookingEmail({
+        appointmentId: result.appointment.id,
+        to: result.appointment.patientEmail,
+        patientName: result.appointment.patientName,
+        serviceName: result.appointment.serviceName,
+        date: result.appointment.date,
+        time: result.appointment.time,
+        priceCents: result.appointment.priceCents,
+      });
 
       return {
         content: [

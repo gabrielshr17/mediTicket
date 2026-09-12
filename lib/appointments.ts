@@ -1,8 +1,7 @@
 import { Prisma, type Appointment } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getServiceById } from "@/lib/services";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail } from "@/lib/emailValidation";
 
 export interface BookingInput {
   serviceId: string;
@@ -52,7 +51,7 @@ export async function createPendingAppointment(
   if (!patientName.trim()) {
     return { ok: false, status: 400, code: "MISSING_NAME", error: "Please enter your full name." };
   }
-  if (!EMAIL_RE.test(patientEmail)) {
+  if (!isValidEmail(patientEmail)) {
     return {
       ok: false,
       status: 400,
