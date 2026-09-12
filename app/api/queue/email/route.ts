@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { enqueueBookingEmail, getEmailQueue } from "@/lib/queue/emailQueue";
+import { enqueueBookingEmail, getEmailQueue, isQueueEnabled } from "@/lib/queue/emailQueue";
 import { isValidEmail, normalizeEmail } from "@/lib/emailValidation";
 
 function isAuthorized(req: NextRequest): boolean {
@@ -20,6 +20,10 @@ function isAuthorized(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isQueueEnabled()) {
+    return NextResponse.json({ error: "The queue is not configured. Set REDIS_URL." }, { status: 503 });
   }
 
   try {
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   if (!jobId) {
     return NextResponse.json(
-      { error: "Could not enqueue the email. Is Redis running?" },
+      { error: "Could not enqueue the email. Is REDIS_URL set and Redis running?" },
       { status: 503 }
     );
   }

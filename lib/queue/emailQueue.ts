@@ -14,6 +14,10 @@ export interface BookingEmailJob {
 
 let queue: Queue<BookingEmailJob> | null = null;
 
+export function isQueueEnabled(): boolean {
+  return Boolean(process.env.REDIS_URL);
+}
+
 export function getEmailQueue(): Queue<BookingEmailJob> {
   if (!queue) {
     queue = new Queue<BookingEmailJob>(EMAIL_QUEUE, {
@@ -31,6 +35,8 @@ export function getEmailQueue(): Queue<BookingEmailJob> {
 }
 
 export async function enqueueBookingEmail(data: BookingEmailJob): Promise<string | null> {
+  if (!isQueueEnabled()) return null;
+
   try {
     const job = await getEmailQueue().add("booking-confirmation", data);
     return job.id ?? null;
